@@ -1,7 +1,8 @@
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text, View } from "react-native";
+import { Alert } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { Provider, useDispatch, useSelector } from "react-redux";
 
 import { Colors } from "./utils/styles";
 import LoginScreen from "./screens/LoginScreen";
@@ -9,6 +10,8 @@ import SignupScreen from "./screens/SignupScreen";
 import WelcomeScreen from "./screens/WelcomeScreen";
 import IconButton from "./components/ui/IconButton";
 import { authActions } from "./store/authSlice";
+import store from "./store";
+import { logout as logoutUser } from "./utils/authDataService";
 
 const Stack = createNativeStackNavigator();
 
@@ -28,6 +31,24 @@ function AuthStack() {
 }
 
 function EnteredStack() {
+  const dispatch = useDispatch();
+
+  const username = useSelector((state) => state.auth.login);
+  const refreshToken = useSelector((state) => state.auth.refreshToken);
+
+  async function logoutHandler() {
+    try {
+      await logoutUser(refreshToken);
+    } catch (error) {
+      Alert.alert(
+        "Logout",
+        "Could not notify the server about logout. Your local session will be cleared."
+      );
+    } finally {
+      dispatch(authActions.logout());
+    }
+  }
+
   return (
     <Stack.Navigator
       screenOptions={{
@@ -45,7 +66,7 @@ function EnteredStack() {
               icon="exit"
               color={tintColor}
               size={24}
-              onPress={() => dispatch(authActions.logout(refreshToken))}
+              onPress={logoutHandler}
             />
           ),
         }}
@@ -55,18 +76,19 @@ function EnteredStack() {
 }
 
 function InnerNavigation() {
-  const isAuthenticated = false;
-  return isAuthenticated ? <EnteredStack /> : <AuthStack />;
+  const token = useSelector((state) => state.auth.token);
+
+  return token ? <EnteredStack /> : <AuthStack />;
 }
 
 export default function App() {
   return (
-    <>
+    <Provider store={store}>
       <StatusBar style="light" />
       <NavigationContainer>
         <InnerNavigation />
       </NavigationContainer>
-    </>
+    </Provider>
   );
 }
 

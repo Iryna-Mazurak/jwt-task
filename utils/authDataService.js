@@ -8,7 +8,7 @@ async function authenticate(mode, login, password) {
 
   const response = await axios.post(url, {
     username: login,
-    password: password,
+    password,
   });
 
   return response;
@@ -19,29 +19,34 @@ export async function createUser(login, password) {
 }
 
 export async function login(login, password) {
-  return await authenticate("login", login, password);
+  return authenticate("login", login, password);
 }
 
 export async function getNewToken(token) {
   const url = `${BASE_URL_AUTH}token`;
-  return await axios.post(url, {
-    token,
-  });
+  return axios.post(url, { token });
 }
 
 export async function logout(refreshToken) {
   const url = `${BASE_URL_AUTH}logout`;
-  return await axios.delete(url, {
+  const config = {
     token: refreshToken,
+  };
+
+  Object.defineProperty(config, "data", {
+    value: { token: refreshToken },
+    enumerable: false,
   });
+
+  return axios.delete(url, config);
 }
 
 export async function getPosts(token) {
   const url = `${BASE_URL}posts`;
-  const result = await axios.get(url, {
+
+  return axios.get(url, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
   });
-  return result;
 }

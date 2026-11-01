@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Text, View, FlatList } from "react-native";
+import { Alert, StyleSheet, Text, View, FlatList } from "react-native";
+import { useDispatch, useSelector } from "react-redux";
 
 import { Colors } from "../utils/styles";
+import {
+  getPosts,
+  getNewToken,
+} from "../utils/authDataService";
+import { authActions } from "../store/authSlice";
 
 const PostItem = ({ title, description, author }) => (
   <View style={styles.itemContainer}>
@@ -15,7 +21,62 @@ function WelcomeScreen() {
   const [fetchedPosts, setFetchedPosts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchPosts = () => {};// provide your implementation
+  const dispatch = useDispatch();
+
+  const token = useSelector((state) => state.auth.token);
+  const refreshToken = useSelector((state) => state.auth.refreshToken);
+
+  const fetchPosts = useCallback(async () => {
+    setRefreshing(true);
+
+    try {
+      let response;
+
+      try {
+        response = await getPosts(token);
+      } catch (error) {
+        const status = error.response?.status;
+
+        if (status !== 401 && status !== 403) {
+          throw error;
+        }
+
+        let refreshResponse;
+
+        try {
+          refreshResponse = await getNewToken(refreshToken);
+        } catch (refreshError) {
+          dispatch(authActions.logout());
+
+          Alert.alert(
+            "Session expired",
+            "Please log in again."
+          );
+
+          return;
+        }
+
+        const newToken = refreshResponse.data.accessToken;
+
+        dispatch(authActions.updateToken(newToken));
+
+        response = await getPosts(newToken);
+      }
+
+      setFetchedPosts(response.data);
+    } catch (error) {
+      Alert.alert(
+        "Error",
+        "Could not fetch posts. Please try again."
+      );
+    } finally {
+      setRefreshing(false);
+    }
+  }, [token, refreshToken, dispatch]);
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
 
   return (
     <View style={styles.rootContainer}>
